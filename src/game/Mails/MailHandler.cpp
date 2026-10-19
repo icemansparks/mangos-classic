@@ -291,7 +291,9 @@ void WorldSession::HandleMailMarkAsRead(WorldPacket& recv_data)
 
     Player* pl = _player;
 
-    if (Mail* m = pl->GetMail(mailId))
+    Mail* m = pl->GetMail(mailId);
+    // a deleted mail keeps its state, or the next save would keep it
+    if (m && m->state != MAIL_STATE_DELETED && !(m->checked & MAIL_CHECK_MASK_READ))
     {
         if (pl->unReadMails)
             --pl->unReadMails;
@@ -331,6 +333,10 @@ void WorldSession::HandleMailDelete(WorldPacket& recv_data)
             return;
         }
 
+        // an unread mail leaving the inbox no longer counts for the new-mail icon
+        if (m->state != MAIL_STATE_DELETED && !(m->checked & MAIL_CHECK_MASK_READ) && m->deliver_time <= time(nullptr) && pl->unReadMails)
+            --pl->unReadMails;
+
         m->state = MAIL_STATE_DELETED;
     }
     pl->SendMailResult(mailId, MAIL_DELETED, MAIL_OK);
@@ -361,6 +367,9 @@ void WorldSession::HandleMailReturnToSender(WorldPacket& recv_data)
         pl->SendMailResult(mailId, MAIL_RETURNED_TO_SENDER, MAIL_ERR_INTERNAL_ERROR);
         return;
     }
+
+    if (!(m->checked & MAIL_CHECK_MASK_READ) && pl->unReadMails)
+        --pl->unReadMails;
 
     // we can return mail now
     // so firstly delete the old one
