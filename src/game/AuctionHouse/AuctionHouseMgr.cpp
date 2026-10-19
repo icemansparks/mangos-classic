@@ -619,7 +619,11 @@ void AuctionHouseObject::BuildListAuctionItems(WorldPacket& data, Player* player
             if (quality != 0xffffffff && proto->Quality < quality)
                 continue;
 
-            if (levelmin != 0x00 && (proto->RequiredLevel < levelmin || (levelmax != 0x00 && proto->RequiredLevel > levelmax)))
+            // each bound applies on its own: an empty min box with a max set still filters
+            if (levelmin != 0x00 && proto->RequiredLevel < levelmin)
+                continue;
+
+            if (levelmax != 0x00 && proto->RequiredLevel > levelmax)
                 continue;
 
             if (usable != 0x00)
