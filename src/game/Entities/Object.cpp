@@ -30,6 +30,7 @@
 #include "Entities/UpdateData.h"
 #include "Entities/UpdateMask.h"
 #include "Entities/Transports.h"
+#include "Movement/MoveSpline.h"
 #include "Util/Util.h"
 #include "Grids/CellImpl.h"
 #include "Grids/GridNotifiers.h"
@@ -304,7 +305,9 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint8 updateFlags) const
     if (updateFlags & UPDATEFLAG_LIVING)
     {
         MANGOS_ASSERT(unit);
-        if (unit->IsStopped() && unit->m_movementInfo.HasMovementFlag(MOVEFLAG_SPLINE_ENABLED))
+        // Strip the spline flag only when no spline is running. IsStopped() does not
+        // reflect taxi flights, so it removed the flag from taxi passengers.
+        if (unit->m_movementInfo.HasMovementFlag(MOVEFLAG_SPLINE_ENABLED) && unit->movespline->Finalized())
         {
             sLog.outError("%s is not moving but have spline movement enabled!", GetGuidStr().c_str());
             ((Unit*)this)->m_movementInfo.RemoveMovementFlag(MovementFlags(MOVEFLAG_SPLINE_ENABLED | MOVEFLAG_FORWARD));
