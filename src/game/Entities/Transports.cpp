@@ -487,6 +487,14 @@ void ElevatorTransport::Update(const uint32 /*diff*/)
     }
 }
 
+uint32 ElevatorTransport::GetPathProgress() const
+{
+    if (!m_animationInfo)
+        return m_pathProgress;
+
+    return (GetMap()->GetCurrentMSTime() - m_movementStarted) % m_animationInfo->TotalTime;
+}
+
 void GenericTransport::UpdatePosition(float x, float y, float z, float o)
 {
     Relocate(x, y, z, o);
