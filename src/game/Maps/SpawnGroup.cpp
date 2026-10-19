@@ -29,6 +29,8 @@
 #include "World/World.h"
 #include "Maps/InstanceData.h"
 
+#include <unordered_set>
+
 namespace
 {
     const char* GetMoveTypeStr(MovementGeneratorType mType)
@@ -562,13 +564,24 @@ void CreatureGroup::TriggerLinkingEvent(uint32 event, Unit* target)
         case CREATURE_GROUP_EVENT_EVADE:
             if ((m_entry.Flags & CREATURE_GROUP_EVADE_TOGETHER) != 0)
             {
+                // Re-entrancy guard: each member's EnterEvadeMode() fires this event
+                // again, and IsEvadingHome() alone cannot stop the cascade - a member
+                // already standing at home runs HomeMovementGenerator to completion
+                // instantly, which clears EVADE_HOME synchronously and leaves it
+                // re-triggerable forever within one broadcast (infinite recursion,
+                // stack overflow). Each group broadcasts once at a time; nested
+                // triggers of the same group are no-ops, other groups are unaffected.
+                static thread_local std::unordered_set<CreatureGroup const*> s_evadeBroadcasting;
+                if (!s_evadeBroadcasting.insert(this).second)
+                    break;
                 for (auto& data : m_objects)
                 {
                     uint32 dbGuid = data.first;
                     if (Creature* creature = m_map.GetCreature(dbGuid))
-                        if (!creature->GetCombatManager().IsEvadingHome())
+                        if (creature != target && !creature->GetCombatManager().IsEvadingHome())
                             creature->AI()->EnterEvadeMode();
                 }
+                s_evadeBroadcasting.erase(this);
             }
             break;
         case CREATURE_GROUP_EVENT_HOME:
