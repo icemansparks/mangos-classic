@@ -195,7 +195,7 @@ Item::Item()
     m_lootState = ITEM_LOOT_NONE;
     m_enchantmentModifier = 0;
 
-    m_usedInSpell = false;
+    m_spellRefs = 0;
 }
 
 Item::~Item()
@@ -347,6 +347,9 @@ void Item::SaveToDB()
                 stmt = CharacterDatabase.CreateStatement(delLoot, DELETE_LOOT);
                 stmt.PExecute(GetGUIDLow());
             }
+
+            if (DeferDeleteToSpells())
+                return;
 
             delete this;
             return;
@@ -683,11 +686,17 @@ void Item::SetItemRandomProperties(int32 randomPropId)
 
 void Item::SetState(ItemUpdateState state, Player* forplayer)
 {
+    // removed and waiting for the last spell holding it, must not enter an update queue again
+    if (IsDeletePending())
+        return;
+
     if (uState == ITEM_NEW && state == ITEM_REMOVED)
     {
         // pretend the item never existed
         if (forplayer || GetOwnerGuid())
             RemoveFromUpdateQueueOf(forplayer);
+        if (DeferDeleteToSpells())
+            return;
         delete this;
         return;
     }

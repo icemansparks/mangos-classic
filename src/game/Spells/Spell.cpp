@@ -506,8 +506,7 @@ Spell::Spell(WorldObject* caster, SpellEntry const* info, uint32 triggeredFlags,
 
 Spell::~Spell()
 {
-    if (!m_IsTriggeredSpell && m_CastItem)
-        m_CastItem->SetUsedInSpell(false);
+    ReleaseCastItemRef(m_CastItem);
 }
 
 template<typename T>
@@ -3502,9 +3501,21 @@ void Spell::_handle_finish_phase()
 
 void Spell::SetCastItem(Item* item)
 {
+    if (m_CastItem == item)
+        return;
+    ReleaseCastItemRef(m_CastItem);
     m_CastItem = item;
     if (item)
+    {
         m_itemCastSpell = true;
+        item->AddSpellRef();
+    }
+}
+
+void Spell::ReleaseCastItemRef(Item* item)
+{
+    if (item && item->ReleaseSpellRef())
+        delete item;
 }
 
 void Spell::SendSpellCooldown()
@@ -4366,13 +4377,14 @@ void Spell::TakeCastItem()
 
     if (expendable && withoutCharges)
     {
-        if (m_CastItem)
-            m_CastItem->SetUsedInSpell(false);
+        Item* castItem = m_CastItem;
         uint32 count = 1;
         static_cast<Player*>(m_caster)->DestroyItemCount(*m_CastItem, count, true);
 
         // prevent crash at access to deleted m_targets.getItemTarget
         ClearCastItem();
+        // a new item is only deleted here, as this spell held it through DestroyItemCount
+        ReleaseCastItemRef(castItem);
     }
 }
 
@@ -4471,7 +4483,7 @@ void Spell::TakeReagents()
                     }
                 }
 
-                m_CastItem->SetUsedInSpell(false);
+                ReleaseCastItemRef(m_CastItem);
                 m_CastItem = nullptr;
             }
         }
