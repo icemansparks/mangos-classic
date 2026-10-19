@@ -3085,6 +3085,10 @@ void Player::UpdateNextMailTimeAndUnreads()
     unReadMails = 0;
     for (PlayerMails::iterator itr = m_mail.begin(); itr != m_mail.end(); ++itr)
     {
+        // deleted mails stay in m_mail until the next save
+        if ((*itr)->state == MAIL_STATE_DELETED)
+            continue;
+
         if ((*itr)->deliver_time > cTime)
         {
             if (!m_nextMailDelivereTime || m_nextMailDelivereTime > (*itr)->deliver_time)
