@@ -338,8 +338,13 @@ bool AuthSocket::_HandleLogonChallenge()
         EndianConvert(*pUint16);
         uint16 remaining = header->size;
 
-        if ((remaining < sizeof(sAuthLogonChallengeBody) - AUTH_LOGON_MAX_NAME))
+        // header->size comes from the client; the body is read into a fixed-size struct
+        if (remaining < sizeof(sAuthLogonChallengeBody) - AUTH_LOGON_MAX_NAME ||
+            remaining > sizeof(sAuthLogonChallengeBody))
+        {
+            self->Close();
             return;
+        }
 
         DEBUG_LOG("[AuthChallenge] got header, body is %#04x bytes", remaining);
 
@@ -719,8 +724,13 @@ bool AuthSocket::_HandleReconnectChallenge()
         uint16 remaining = header->size;
         DEBUG_LOG("[ReconnectChallenge] got header, body is %#04x bytes", remaining);
 
-        if ((remaining < sizeof(sAuthLogonChallengeBody) - 10))
+        // same upper bound as in _HandleLogonChallenge
+        if (remaining < sizeof(sAuthLogonChallengeBody) - 10 ||
+            remaining > sizeof(sAuthLogonChallengeBody))
+        {
+            self->Close();
             return;
+        }
 
         ///- Session is closed unless overriden
         self->_status = STATUS_CLOSED;
