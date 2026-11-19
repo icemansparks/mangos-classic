@@ -57,7 +57,7 @@ class GenericTransport : public GameObject
         static void CalculatePassengerPosition(float& x, float& y, float& z, float* o, float transX, float transY, float transZ, float transO);
         static void CalculatePassengerOffset(float& x, float& y, float& z, float* o, float transX, float transY, float transZ, float transO);
 
-        uint32 GetPathProgress() const { return m_pathProgress; }
+        virtual uint32 GetPathProgress() const { return m_pathProgress; }
     protected:
         void UpdatePassengerPositions(PassengerSet& passengers);
 
@@ -74,6 +74,9 @@ class ElevatorTransport : public GenericTransport
         bool Create(uint32 dbGuid, uint32 guidlow, uint32 name_id, Map* map, float x, float y, float z, float ang,
             float rotation0 = 0.0f, float rotation1 = 0.0f, float rotation2 = 0.0f, float rotation3 = 0.0f, uint32 animprogress = GO_ANIMPROGRESS_DEFAULT, GOState go_state = GO_STATE_READY) override;
         void Update(const uint32 diff) override;
+        // computed from map time, not the value cached in Update(): the elevator only updates near players,
+        // so a player arriving at an idle or freshly loaded grid would get a stale start point and see it out of sync
+        uint32 GetPathProgress() const override;
 
     private:
         TransportAnimation const* m_animationInfo;
